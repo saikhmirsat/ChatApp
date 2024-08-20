@@ -1,10 +1,10 @@
+// index.js
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
 const connectDB = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 const allRoutes = require('./routes/allRoutes');
-const configureSocket = require('./socket/socket'); // Import socket configuration
 
 require('dotenv').config();
 
@@ -39,9 +39,6 @@ app.use((req, res) => {
 
 // Error handling middleware
 app.use(errorHandler);
-
-// Configure Socket.IO
-configureSocket(server);
 
 // Start the server
 server.listen(port, () => {

@@ -9,6 +9,6 @@ router.post('/login', loginValidation, loginUser);
 
 // Get Users
 router.get('/users', getAllUsers);
-router.get('/users/:id', getUserById);
+router.get('/user/:id', getUserById);
 
 module.exports = router;
