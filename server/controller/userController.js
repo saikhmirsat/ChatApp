@@ -64,8 +64,6 @@ exports.loginUser = async (req, res) => {
             $or: [{ email: emailOrUsername }, { userName: emailOrUsername }]
         });
         
-        console.log(user)
-
         if (!user) {
             return res.status(400).json({ message: 'Invalid email/username or password.' });
         }
@@ -88,6 +86,7 @@ exports.loginUser = async (req, res) => {
 
         res.status(200).json({ message: 'Login successful!', token, user });
     } catch (error) {
+        console.log(error)
         res.status(500).json({ message: 'Server error.' });
     }
 };
