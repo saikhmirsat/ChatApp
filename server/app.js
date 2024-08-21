@@ -133,7 +133,7 @@ io.on('connection', (socket) => {
             // Create a new chat document
             const newChat = new Chat({
                 sender: ChatData.sender,
-                receiver: ChatData.receiverId,
+                receiver: ChatData.receiver,
                 message: ChatData.message,
                 messageType: ChatData.messageType || 'text', // Default to 'text'
                 timestamp: new Date(ChatData.timestamp), // Convert timestamp to Date object
