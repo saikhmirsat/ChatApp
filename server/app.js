@@ -132,7 +132,7 @@ io.on('connection', (socket) => {
         try {
             // Create a new chat document
             const newChat = new Chat({
-                sender: ChatData.senderId,
+                sender: ChatData.sender,
                 receiver: ChatData.receiverId,
                 message: ChatData.message,
                 messageType: ChatData.messageType || 'text', // Default to 'text'
