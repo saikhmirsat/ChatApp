@@ -87,8 +87,7 @@ require('dotenv').config();
 const port = process.env.PORT || 5000;
 const allRoutes = require('./routes/allRoutes');
 const connectDB = require('./config/database');
-
-
+const Chat = require('./model/Chat');
 
 // Initialize Express
 const app = express();
@@ -105,7 +104,6 @@ const io = new Server(httpServer, {
     }
 });
 
-
 // Handle connection event
 io.on('connection', (socket) => {
     const { userId } = socket.handshake.query;
@@ -119,15 +117,56 @@ io.on('connection', (socket) => {
         console.log(`User disconnected: ${userId}`);
     });
 
-    // Handle receiving an image
-    socket.on('Image', (data) => {
-        socket.broadcast.emit('incomingImage', data);
+    // Handle receiving a message
+    socket.on('ClientMessage', async (chatData) => {
+        try {
+            // Create a new chat document
+            const newChat = new Chat({
+                sender: chatData.senderId,
+                receiver: chatData.receiverId,
+                message: chatData.message,
+                messageType: chatData.messageType || 'text', // Default to 'text'
+                timestamp: new Date(chatData.timestamp), // Convert timestamp to Date object
+                seen: false, // Default to false
+                seenAt: null // Default to null
+            });
+
+            // Save the chat message to the database
+            await newChat.save();
+
+            // Emit the message to the intended receiver
+            socket.to(chatData.receiverId).emit('ServerResponse', {
+                _id: newChat._id,
+                sender: newChat.sender,
+                receiver: newChat.receiver,
+                message: newChat.message,
+                messageType: newChat.messageType,
+                seen: newChat.seen,
+                seenAt: newChat.seenAt,
+                timestamp: newChat.timestamp,
+            });
+        } catch (error) {
+            console.error('Error saving message:', error);
+            // Handle error if needed
+        }
     });
 
-    // Handle receiving a client message
-    socket.on('ClientMessage', (ChatData) => {
-        console.log(ChatData);
-        socket.broadcast.emit('ServerResponse', ChatData);
+    // Handle marking messages as seen
+    socket.on('MarkAsSeen', async (messageId) => {
+        try {
+            const message = await Chat.findById(messageId);
+            if (message) {
+                message.seen = true;
+                message.seenAt = new Date();
+                await message.save();
+
+                // Optionally, notify the sender or other relevant parties
+                socket.to(message.sender.toString()).emit('MessageSeen', messageId);
+            }
+        } catch (error) {
+            console.error('Error marking message as seen:', error);
+            // Handle error if needed
+        }
     });
 });
 
@@ -137,7 +176,6 @@ app.get('/', (req, res) => {
 });
 
 app.use('/chat-app', allRoutes);
-
 
 // Start listening on the specified port
 httpServer.listen(port, () => {
