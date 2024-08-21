@@ -107,29 +107,55 @@ const io = new Server(httpServer, {
 
 
 // Handle connection event
+// io.on('connection', (socket) => {
+//     const { userId } = socket.handshake.query;
+//     console.log(`User connected: ${userId}`);
+
+//     // Emit a message to the client that the connection is successful
+//     socket.emit('server', { message: "Connected to server", userId });
+
+//     // Handle disconnection
+//     socket.on('disconnect', () => {
+//         console.log(`User disconnected: ${userId}`);
+//     });
+
+//     // Handle receiving an image
+//     socket.on('Image', (data) => {
+//         socket.broadcast.emit('incomingImage', data);
+//     });
+
+//     // Handle receiving a client message
+//     socket.on('ClientMessage', (ChatData) => {
+//         console.log(ChatData);
+//         socket.broadcast.emit('ServerResponse', ChatData);
+//     });
+// });
+
 io.on('connection', (socket) => {
     const { userId } = socket.handshake.query;
     console.log(`User connected: ${userId}`);
 
+    // Store the connected user's socket in a map
+    socket.userId = userId; // Add the userId to the socket object for easy access
+
     // Emit a message to the client that the connection is successful
     socket.emit('server', { message: "Connected to server", userId });
+
+    // Handle receiving a client message
+    socket.on('ClientMessage', (ChatData) => {
+        console.log(ChatData);
+        const { senderId, receiverId } = ChatData;
+
+        // Send the message only to the intended receiver
+        socket.to(receiverId).emit('ServerResponse', ChatData);
+    });
 
     // Handle disconnection
     socket.on('disconnect', () => {
         console.log(`User disconnected: ${userId}`);
     });
-
-    // Handle receiving an image
-    socket.on('Image', (data) => {
-        socket.broadcast.emit('incomingImage', data);
-    });
-
-    // Handle receiving a client message
-    socket.on('ClientMessage', (ChatData) => {
-        console.log(ChatData);
-        socket.broadcast.emit('ServerResponse', ChatData);
-    });
 });
+
 
 // Set up a route on the root URL ("/")
 app.get('/', (req, res) => {
