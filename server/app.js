@@ -80,15 +80,79 @@
 //     console.log(`Server running on port ${port}`);
 // });
 
+// const { createServer } = require('http');
+// const { Server } = require('socket.io');
+// const express = require('express');  // Use Express for routing
+// require('dotenv').config();
+// const port = process.env.PORT || 5000;
+// const allRoutes = require('./routes/allRoutes');
+// const connectDB = require('./config/database');
+
+
+
+// // Initialize Express
+// const app = express();
+// app.use(express.json());
+
+// // Create an HTTP server and pass the Express app to it
+// let httpServer = createServer(app);
+
+// // Create a Socket.io server and attach it to the HTTP server
+// const io = new Server(httpServer, {
+//     cors: {
+//         origin: "*",
+//         methods: ['GET', 'POST']
+//     }
+// });
+
+
+// // Handle connection event
+// io.on('connection', (socket) => {
+//     const { userId } = socket.handshake.query;
+//     console.log(`User connected: ${userId}`);
+
+//     // Emit a message to the client that the connection is successful
+//     socket.emit('server', { message: "Connected to server", userId });
+
+//     // Handle disconnection
+//     socket.on('disconnect', () => {
+//         console.log(`User disconnected: ${userId}`);
+//     });
+
+//     // Handle receiving an image
+//     socket.on('Image', (data) => {
+//         socket.broadcast.emit('incomingImage', data);
+//     });
+
+//     // Handle receiving a client message
+//     socket.on('ClientMessage', (ChatData) => {
+//         console.log(ChatData);
+//         socket.broadcast.emit('ServerResponse', ChatData);
+//     });
+// });
+
+// // Set up a route on the root URL ("/")
+// app.get('/', (req, res) => {
+//     res.send('Server is working');
+// });
+
+// app.use('/chat-app', allRoutes);
+
+
+// // Start listening on the specified port
+// httpServer.listen(port, () => {
+//     connectDB();
+//     console.log("Everything is cool!");
+//     console.log(`Server running on port ${port}`);
+// });
+
 const { createServer } = require('http');
 const { Server } = require('socket.io');
-const express = require('express');  // Use Express for routing
+const express = require('express');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
 const allRoutes = require('./routes/allRoutes');
 const connectDB = require('./config/database');
-
-
 
 // Initialize Express
 const app = express();
@@ -104,7 +168,6 @@ const io = new Server(httpServer, {
         methods: ['GET', 'POST']
     }
 });
-
 
 // Handle connection event
 io.on('connection', (socket) => {
@@ -126,8 +189,15 @@ io.on('connection', (socket) => {
 
     // Handle receiving a client message
     socket.on('ClientMessage', (ChatData) => {
-        console.log(ChatData);
-        socket.broadcast.emit('ServerResponse', ChatData);
+        console.log('Received message:', ChatData);
+        // Emit the message to the intended receiver
+        io.to(ChatData.receiverId).emit('ServerResponse', ChatData);
+
+        // Emit status update to the sender
+        io.to(ChatData.senderId).emit('messageStatus', {
+            timestamp: ChatData.timestamp,
+            status: 'delivered' // Update status as delivered
+        });
     });
 });
 
@@ -137,7 +207,6 @@ app.get('/', (req, res) => {
 });
 
 app.use('/chat-app', allRoutes);
-
 
 // Start listening on the specified port
 httpServer.listen(port, () => {
