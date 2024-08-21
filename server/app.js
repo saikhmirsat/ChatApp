@@ -80,57 +80,68 @@
 //     console.log(`Server running on port ${port}`);
 // });
 
-
-
 const { createServer } = require('http');
 const { Server } = require('socket.io');
-const express = require('express');
+const express = require('express');  // Use Express for routing
 require('dotenv').config();
 const port = process.env.PORT || 5000;
 const allRoutes = require('./routes/allRoutes');
 const connectDB = require('./config/database');
 
+
+
 // Initialize Express
 const app = express();
 app.use(express.json());
 
-// Create HTTP server and pass the Express app
-const httpServer = createServer(app);
+// Create an HTTP server and pass the Express app to it
+let httpServer = createServer(app);
 
-// Attach Socket.IO to HTTP server
+// Create a Socket.io server and attach it to the HTTP server
 const io = new Server(httpServer, {
-  cors: {
-    origin: "*",
-    methods: ['GET', 'POST'],
-  },
+    cors: {
+        origin: "*",
+        methods: ['GET', 'POST']
+    }
 });
 
-// WebSocket logic
+
+// Handle connection event
 io.on('connection', (socket) => {
-  const { userId } = socket.handshake.query;
-  console.log(`User connected: ${userId}`);
+    const { userId } = socket.handshake.query;
+    console.log(`User connected: ${userId}`);
 
-  // Emit confirmation of connection
-  socket.emit('server', { message: "Connected to server", userId });
+    // Emit a message to the client that the connection is successful
+    socket.emit('server', { message: "Connected to server", userId });
 
-  // Listen for client messages and broadcast to the receiver
-  socket.on('ClientMessage', (ChatData) => {
-    console.log(ChatData);
-    const { senderId, receiverId } = ChatData;
-    socket.to(receiverId).emit('ServerResponse', ChatData);
-  });
+    // Handle disconnection
+    socket.on('disconnect', () => {
+        console.log(`User disconnected: ${userId}`);
+    });
 
-  // Handle disconnection
-  socket.on('disconnect', () => {
-    console.log(`User disconnected: ${userId}`);
-  });
+    // Handle receiving an image
+    socket.on('Image', (data) => {
+        socket.broadcast.emit('incomingImage', data);
+    });
+
+    // Handle receiving a client message
+    socket.on('ClientMessage', (ChatData) => {
+        console.log(ChatData);
+        socket.broadcast.emit('ServerResponse', ChatData);
+    });
 });
 
-// Routes
+// Set up a route on the root URL ("/")
+app.get('/', (req, res) => {
+    res.send('Server is working');
+});
+
 app.use('/chat-app', allRoutes);
 
-// Start server
+
+// Start listening on the specified port
 httpServer.listen(port, () => {
-  connectDB();
-  console.log(`Server running on port ${port}`);
+    connectDB();
+    console.log("Everything is cool!");
+    console.log(`Server running on port ${port}`);
 });
