@@ -1,95 +1,126 @@
-// const express = require('express');
-// const http = require('http');
-// const cors = require('cors');
-// const connectDB = require('./config/database');
-// const errorHandler = require('./middleware/errorHandler');
-// const allRoutes = require('./routes/allRoutes');
+
+
+// const { createServer } = require('http');
 // const { Server } = require('socket.io');
-// const { v4: uuidv4 } = require('uuid'); // For generating unique IDs
-
+// const express = require('express');  // Use Express for routing
 // require('dotenv').config();
-
-// const app = express();
 // const port = process.env.PORT || 5000;
-// const server = http.createServer(app);
-// const io = new Server(server);
+// const allRoutes = require('./routes/allRoutes');
+// const connectDB = require('./config/database');
+// const Chat = require('./model/Chat');
+// const User = require('./model/user');
 
-// // Connect to the database
-// connectDB();
 
-// // Middleware
-// app.use(cors());
+// // Initialize Express
+// const app = express();
 // app.use(express.json());
 
-// // Routes
+// // Create an HTTP server and pass the Express app to it
+// let httpServer = createServer(app);
+
+// // Create a Socket.io server and attach it to the HTTP server
+// const io = new Server(httpServer, {
+//     cors: {
+//         origin: "*",
+//         methods: ['GET', 'POST']
+//     }
+// });
+
+
+// // Handle connection event
+// io.on('connection', (socket) => {
+//     const { userId } = socket.handshake.query;
+//     console.log(`User connected: ${userId}`);
+
+//     // Emit a message to the client that the connection is successful
+//     socket.emit('server', { message: "Connected to server", userId });
+
+//     // Set user as online and update lastActive
+//     User.findByIdAndUpdate(userId, { isOnline: true, lastActive: new Date() }, { new: true })
+//         .then(() => console.log(`User ${userId} is now online`))
+//         .catch((err) => console.error('Error updating user status:', err));
+
+//     // Handle disconnection
+//     socket.on('disconnect', () => {
+//         console.log(`User disconnected: ${userId}`);
+
+//         // Set user as offline and update lastActive
+//         User.findByIdAndUpdate(userId, { isOnline: false, lastActive: new Date() }, { new: true })
+//             .then(() => console.log(`User ${userId} is now offline`))
+//             .catch((err) => console.error('Error updating user status:', err));
+//     });
+
+//     // Handle receiving an image
+//     socket.on('Image', (data) => {
+//         socket.broadcast.emit('incomingImage', data);
+//     });
+
+//     // Handle receiving a client message
+//     socket.on('ClientMessage',async (ChatData) => {
+//         console.log(ChatData);
+
+//         try {
+//             // Create a new chat document
+//             const newChat = new Chat({
+//                 sender: ChatData.sender,
+//                 receiver: ChatData.receiverId,
+//                 message: ChatData.message,
+//                 messageType: ChatData.messageType || 'text', // Default to 'text'
+//                 timestamp: new Date(ChatData.timestamp), // Convert timestamp to Date object
+//                 seen: false, // Default to false
+//                 seenAt: null // Default to null
+//             });
+
+//             // Save the chat message to the database
+//             await newChat.save();
+//             socket.broadcast.emit('ServerResponse', ChatData);
+          
+//         } catch (error) {
+//             console.error('Error saving message:', error);
+//             // Handle error if needed
+//         }
+
+//     });
+
+//      // Event to update seen status for messages
+//      socket.on('MarkMessageSeen', async (messageIds) => {
+//         try {
+//             // Update the seen status of messages with the provided IDs
+//             await Chat.updateMany(
+//                 { _id: { $in: messageIds } },
+//                 { $set: { seen: true, seenAt: new Date() } }
+//             );
+
+//             // Emit the seen status update to the receiver
+//             socket.broadcast.emit('SeenUpdate', messageIds);
+//         } catch (error) {
+//             console.error('Error updating seen status:', error);
+//         }
+//     });
+// });
+
+// // Set up a route on the root URL ("/")
+// app.get('/', (req, res) => {
+//     res.send('Server is working');
+// });
+
 // app.use('/chat-app', allRoutes);
 
-// // Home Route
-// app.get('/', (req, res) => {
-//     res.json({
-//         message: 'Welcome to the API',
-//         api_version: '1.0',
-//     });
-// });
 
-// // 404 Not Found Middleware
-// app.use((req, res) => {
-//     res.status(404).json({
-//         message: "The requested API endpoint was not found",
-//     });
-// });
-
-// // Error handling middleware
-// app.use(errorHandler);
-
-// // Socket.io setup
-// io.on('connection', (socket) => {
-//     console.log('New client connected');
-
-//     socket.on('userOnline', (userId) => {
-//         try {
-//             console.log(`User ${userId} is online`);
-//         } catch (error) {
-//             console.error('Error handling userOnline event:', error);
-//         }
-//     });
-
-//     socket.on('sendMessage', (messageData) => {
-//         try {
-//             // Add an _id to the messageData
-//             const messageWithId = {
-//                 ...messageData,
-//                 _id: uuidv4(), // Generate a unique ID
-//                 timestamp: new Date() // Ensure timestamp is also set
-//             };
-
-//             io.emit('receiveMessage', messageWithId);
-//             console.log('Message sent:', messageWithId);
-//         } catch (error) {
-//             console.error('Error handling sendMessage event:', error);
-//         }
-//     });
-
-//     socket.on('disconnect', () => {
-//         console.log('Client disconnected');
-//     });
-// });
-
-// // Start the server
-// server.listen(port, () => {
+// // Start listening on the specified port
+// httpServer.listen(port, () => {
+//     connectDB();
+//     console.log("Everything is cool!");
 //     console.log(`Server running on port ${port}`);
 // });
 
 const { createServer } = require('http');
-const { Server } = require('socket.io');
-const express = require('express');  // Use Express for routing
+const express = require('express');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
 const allRoutes = require('./routes/allRoutes');
 const connectDB = require('./config/database');
-const Chat = require('./model/Chat');
-
-
+const { setupSocket } = require('./socket'); // Import socket setup
 
 // Initialize Express
 const app = express();
@@ -98,72 +129,19 @@ app.use(express.json());
 // Create an HTTP server and pass the Express app to it
 let httpServer = createServer(app);
 
-// Create a Socket.io server and attach it to the HTTP server
-const io = new Server(httpServer, {
-    cors: {
-        origin: "*",
-        methods: ['GET', 'POST']
-    }
-});
-
-
-// Handle connection event
-io.on('connection', (socket) => {
-    const { userId } = socket.handshake.query;
-    console.log(`User connected: ${userId}`);
-
-    // Emit a message to the client that the connection is successful
-    socket.emit('server', { message: "Connected to server", userId });
-
-    // Handle disconnection
-    socket.on('disconnect', () => {
-        console.log(`User disconnected: ${userId}`);
-    });
-
-    // Handle receiving an image
-    socket.on('Image', (data) => {
-        socket.broadcast.emit('incomingImage', data);
-    });
-
-    // Handle receiving a client message
-    socket.on('ClientMessage',async (ChatData) => {
-        console.log(ChatData);
-
-        try {
-            // Create a new chat document
-            const newChat = new Chat({
-                sender: ChatData.sender,
-                receiver: ChatData.receiverId,
-                message: ChatData.message,
-                messageType: ChatData.messageType || 'text', // Default to 'text'
-                timestamp: new Date(ChatData.timestamp), // Convert timestamp to Date object
-                seen: false, // Default to false
-                seenAt: null // Default to null
-            });
-
-            // Save the chat message to the database
-            await newChat.save();
-            socket.broadcast.emit('ServerResponse', ChatData);
-          
-        } catch (error) {
-            console.error('Error saving message:', error);
-            // Handle error if needed
-        }
-
-    });
-});
+// Setup socket server
+setupSocket(httpServer); // Attach socket functionality
 
 // Set up a route on the root URL ("/")
 app.get('/', (req, res) => {
     res.send('Server is working');
 });
 
+// Use the chat routes
 app.use('/chat-app', allRoutes);
-
 
 // Start listening on the specified port
 httpServer.listen(port, () => {
     connectDB();
-    console.log("Everything is cool!");
     console.log(`Server running on port ${port}`);
 });

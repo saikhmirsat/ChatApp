@@ -63,28 +63,60 @@ exports.getMessages = async (req, res) => {
 
 // Mark message as seen
 exports.markAsSeen = async (req, res) => {
+    const { messageIds } = req.body;
+
+  try {
+    // Update seen status for the provided message IDs
+    await Chat.updateMany(
+      { _id: { $in: messageIds } },
+      { $set: { seen: true, seenAt: new Date() } }
+    );
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error updating seen status:', error);
+    res.status(500).json({ success: false, error: 'Failed to update seen status' });
+  }
+};
+
+exports.getUsersWithLastMessage = async (req, res) => {
     try {
-        const { messageId } = req.body;
-        
-        const message = await Chat.findById(messageId);
-        if (!message) {
-            return res.status(404).json({ message: 'Message not found.' });
-        }
+        const userId = req.query.userId; // Logged-in user's ID
 
-        message.seen = true;
-        message.seenAt = new Date();
-        await message.save();
+        // Find all users except the logged-in user
+        const users = await User.find({ _id: { $ne: userId } });
 
-        res.status(200).json({
-            success: true,
-            message: 'Message marked as seen',
-            data: message
-        });
+        // Aggregate user data with their latest message and unseen count
+        const userWithMessages = await Promise.all(users.map(async (user) => {
+            // Get the most recent message for the user
+            const recentMessage = await Chat.findOne({
+                $or: [{ sender: user._id }, { receiver: user._id }]
+            }).sort({ timestamp: -1 });
+
+            // Count unseen messages for the logged-in user
+            const unseenCount = await Chat.countDocuments({
+                receiver: user._id,
+                seen: false
+            });
+
+            return {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                lastMessage: recentMessage ? {
+                    message: recentMessage.message,
+                    timestamp: recentMessage.timestamp,
+                    unseenCount: unseenCount
+                } : {
+                    message: null,
+                    timestamp: null,
+                    unseenCount: 0
+                }
+            };
+        }));
+
+        res.json(userWithMessages);
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Failed to mark message as seen',
-            error: error.message
-        });
+        console.error('Failed to fetch users with messages', error);
+        res.status(500).json({ error: 'Failed to fetch users with messages' });
     }
 };

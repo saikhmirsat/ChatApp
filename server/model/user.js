@@ -46,7 +46,12 @@ const userSchema = new mongoose.Schema(
         password: { 
             type: String,
             required: true
-        }
+        },
+        isCall: {
+            type: String,
+            enum: ["available", "calling", "onCall"],
+            default: "available"
+        },
     },
     { 
         timestamps: true, 
